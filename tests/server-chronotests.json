@@ -1,0 +1,14 @@
+{
+    "app":{
+        "cfengine":"boxlang@stable"
+    },
+    "name":"chronotests",
+    "openbrowser":false,
+    "trayEnable":false,
+    "web":{
+        "http":{
+            "port":"9188"
+        },
+        "webroot":"/"
+    }
+}

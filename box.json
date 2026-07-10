@@ -1,0 +1,32 @@
+{
+	"name":"Chrono",
+	"author":"Pixl8 Group",
+	"version":"$VERSION_NUMBER",
+	"location":"$DOWNLOAD_URL",
+	"slug":"chrono",
+	"type":"modules",
+	"homepage":"https://github.com/pixl8/chrono",
+	"documentation":"https://github.com/pixl8/chrono",
+	"repository":{
+		"type":"git",
+		"url":"https://github.com/pixl8/chrono"
+	},
+	"shortDescription":"Pure CFML cron expression parsing, validation, next-run calculation and human-readable descriptions. A dependency-free port of cron-utils.",
+	"contributors":[
+		"Alex Skinner <alex@pixl8.co.uk>"
+	],
+	"ignore":[
+		"**/.*",
+		"build",
+		"tests"
+	],
+	"devDependencies":{
+		"testbox":"6.4.0"
+	},
+	"installPaths":{
+		"testbox":"tests/testbox/"
+	},
+	"testbox":{
+		"runner":"http://127.0.0.1:9188/runner.cfm"
+	}
+}
