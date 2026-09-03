@@ -18,7 +18,9 @@
 	"ignore":[
 		"**/.*",
 		"build",
-		"tests"
+		"docs",
+		"tests",
+		"TranslationDocs.cfc"
 	],
 	"devDependencies":{
 		"testbox":"6.4.0"
