@@ -16,8 +16,26 @@ chrono = new chrono.models.Chrono();
 
 chrono.validateExpression( "0 */5 * * * *" );            // "" (valid)
 chrono.getNextRunDate( "0 0 0 * * *", Now() );           // "2026-07-09T00:00:00"
-chrono.describeCronTabExression( "0 0 0 * * *", "en" );  // "every day at midnight"
+chrono.describeCronTabExression( "0 0 0 * * *", "en" );  // "every day at 00:00"
+chrono.describeCronTabExression( "0 0 0 * * *", "fr" );  // "chaque jour à 00:00"
 ```
+
+## Descriptions and languages
+
+`describeCronTabExression()` takes a locale and ships with 17 languages: English,
+Dutch, French, German, Greek, Indonesian, Italian, Japanese, Korean, Polish,
+Portuguese, Romanian, Russian, Spanish, Swahili, Turkish and Chinese
+(Simplified).
+
+Both `fr` and `fr-FR` / `fr_FR` are accepted, resolved from least to most
+specific, and anything a language has not translated falls back to English one
+string at a time. Descriptions are built from whole message templates rather
+than assembled word by word, so each language controls its own word order.
+
+Month names, day names and ordinals are shipped as data rather than read from the
+engine, so a cron is described identically on every CFML engine.
+
+See [TRANSLATIONS.md](TRANSLATIONS.md) to review a language or add one.
 
 ## Cron format
 

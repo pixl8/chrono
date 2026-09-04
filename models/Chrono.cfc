@@ -1,5 +1,18 @@
 component displayName="ChronoPort" {
 
+// CONSTRUCTOR
+    /**
+     * @i18n.hint Optional ChronoI18n instance. One is created lazily if not supplied.
+     *
+     */
+    public any function init( any i18n ) {
+        if ( StructKeyExists( arguments, "i18n" ) && !IsNull( arguments.i18n ) ) {
+            variables._i18n = arguments.i18n;
+        }
+
+        return this;
+    }
+
     public string function validateExpression( required string crontabExpression ) {
         try {
             _parseExpression( arguments.crontabExpression );
@@ -23,7 +36,7 @@ component displayName="ChronoPort" {
 
     public string function describeCronTabExression( required string crontabExpression, required string locale ) {
         if ( arguments.crontabExpression == "disabled" ) {
-            return "disabled";
+            return _t( "disabled", arguments.locale );
         }
 
         var parsed = _parseExpression( arguments.crontabExpression );
@@ -468,14 +481,11 @@ component displayName="ChronoPort" {
 
 // DESCRIPTION
     private string function _describe( required struct parsed, required string locale ) {
-        var lang = UCase( ListFirst( arguments.locale, "-" ) );
-        var desc = _describeExpression( arguments.parsed );
-
-        return desc;
+        return _describeExpression( arguments.parsed, arguments.locale );
     }
 
-    private string function _describeExpression( required struct parsed ) {
-        var f = arguments.parsed;
+    private string function _describeExpression( required struct parsed, required string locale ) {
+        var f       = arguments.parsed;
         var secAll  = _isAll( f.second );
         var minAll  = _isAll( f.minute );
         var hrAll   = _isAll( f.hour );
@@ -488,69 +498,62 @@ component displayName="ChronoPort" {
         var hr0     = _isValue( f.hour, 0 );
 
         if ( secAll && minAll && hrAll && domAll && monAll ) {
-            return "every second";
+            return _t( "every_second", arguments.locale );
         }
 
         if ( minAll && hrAll && domAll && monAll && dowAll ) {
-            if ( sec0 ) { return "every minute"; }
-            return "every second (:#_describeField( f.second )#)";
+            if ( sec0 ) {
+                return _t( "every_minute", arguments.locale );
+            }
+            return _t( "every_second_at", arguments.locale, [ _describeField( f.second ) ] );
         }
 
         if ( sec0 && hrAll && domAll && monAll && dowAll ) {
             if ( min0 ) {
-                return "every hour";
+                return _t( "every_hour", arguments.locale );
             }
             if ( _isSpecificInterval( f.minute ) ) {
-                return "every #_describeInterval( f.minute )#";
+                return _describeInterval( f.minute, "minute", arguments.locale );
             }
-            return "every minute past #_describeMinute( f.minute )#";
+            return _t( "minute_past", arguments.locale, [ _describeMinute( f.minute ) ] );
         }
 
-        if ( sec0 && min0 && domAll && monAll && dowAll ) {
+        // any minute is allowed here: branch three has already claimed every
+        // expression with a wildcard hour, so this is a fixed time of day
+        if ( sec0 && domAll && monAll && dowAll ) {
             if ( _isSpecificInterval( f.hour ) ) {
-                return "every #_describeInterval( f.hour )#";
+                return _describeInterval( f.hour, "hour", arguments.locale );
             }
-            return "every day at #_describeHourMinute( f.hour, f.minute )#";
+            return _t( "day_at", arguments.locale, [ _describeHourMinute( f.hour, f.minute ) ] );
         }
 
         if ( sec0 && min0 && hr0 ) {
             if ( domAll && monAll && !dowAll ) {
-                return "every week on #_describeDOWOnly( f.dayOfWeek )# at midnight";
+                return _t( "week_on_at_midnight", arguments.locale, [ _describeDOWOnly( f.dayOfWeek, arguments.locale ) ] );
             }
             if ( _isSpecificDay( f.dayOfMonth ) && monAll && dowAll ) {
-                return "every month on the #_ordinal( _firstValue( f.dayOfMonth ) )# at midnight";
+                return _t( "month_on_ordinal_midnight", arguments.locale, [ _ordinal( _firstValue( f.dayOfMonth ), arguments.locale ) ] );
             }
             if ( !domAll && monAll && dowAll ) {
                 if ( _isSpecificInterval( f.dayOfMonth ) ) {
-                    return "every #f.dayOfMonth[1].step# days at midnight";
+                    return _t( "every_n_days_at_midnight", arguments.locale, [ f.dayOfMonth[1].step ] );
                 }
-                return "every #_describeField( f.dayOfMonth )# days at midnight";
+                return _t( "every_n_days_at_midnight", arguments.locale, [ _describeField( f.dayOfMonth ) ] );
             }
             if ( domAll && monAll && dowAll ) {
-                return "every day at midnight";
+                return _t( "day_at_midnight", arguments.locale );
             }
             if ( !monAll ) {
-                return "every year on #_describeMonthDay( f.month, f.dayOfMonth )# at midnight";
+                return _t( "year_on_at_midnight", arguments.locale, [ _describeMonthDay( f.month, f.dayOfMonth, arguments.locale ) ] );
             }
-            return "at midnight";
+            return _t( "at_midnight", arguments.locale );
         }
 
         if ( sec0 && min0 && domAll && monAll && !dowAll ) {
-            return "#_describeDOWOnly( f.dayOfWeek )# at #_describeHourMinute( f.hour, f.minute )#";
+            return _t( "dow_at", arguments.locale, [ _describeDOWOnly( f.dayOfWeek, arguments.locale ), _describeHourMinute( f.hour, f.minute ) ] );
         }
 
-        return _fallbackDescription( arguments.parsed );
-    }
-
-    private string function _describeSecond( required array constraints, boolean prefixSpace=false ) {
-        if ( _isAll( arguments.constraints ) ) {
-            return "";
-        }
-        var prefix = arguments.prefixSpace ? " " : "";
-        if ( _isValue( constraints, 0 ) ) {
-            return "";
-        }
-        return prefix & "(:#_describeField( constraints )#)";
+        return _fallbackDescription( arguments.parsed, arguments.locale );
     }
 
     private string function _describeField( required array constraints ) {
@@ -575,60 +578,20 @@ component displayName="ChronoPort" {
         return ArrayToList( parts, "," );
     }
 
-    private string function _describeInterval( required array constraints ) {
-        if ( _isEvery( constraints, 5, 59 ) ) {
-            return "5 minutes";
-        }
-        if ( _isEvery( constraints, 15, 59 ) ) {
-            return "15 minutes";
-        }
-        if ( _isEvery( constraints, 30, 59 ) ) {
-            return "30 minutes";
-        }
-        if ( _isEvery( constraints, 1, 59 ) ) {
-            return "minute";
-        }
-        if ( _isEvery( constraints, 1, 23 ) ) {
-            return "hour";
-        }
-        if ( _isEvery( constraints, 2, 23 ) ) {
-            return "2 hours";
-        }
-        if ( _isEvery( constraints, 3, 23 ) ) {
-            return "3 hours";
-        }
-        if ( _isEvery( constraints, 4, 23 ) ) {
-            return "4 hours";
-        }
-        if ( _isEvery( constraints, 6, 23 ) ) {
-            return "6 hours";
-        }
-        if ( _isEvery( constraints, 8, 23 ) ) {
-            return "8 hours";
-        }
-        if ( _isEvery( constraints, 12, 23 ) ) {
-            return "12 hours";
-        }
-        if ( ArrayLen( constraints ) == 1 && constraints[1].type == "step" ) {
-            return "#constraints[1].step# " & _intervalUnit( constraints[1].to );
-        }
-        return "minute";
-    }
+    /**
+     * Describes a stepped minute or hour field, e.g. "every 15 minutes",
+     * "every 2 hours". A step of one is described as the bare unit.
+     *
+     */
+    private string function _describeInterval( required array constraints, required string unit, required string locale ) {
+        var step     = _isSpecificInterval( arguments.constraints ) ? arguments.constraints[1].step : 1;
+        var isHours  = arguments.unit == "hour";
 
-    private string function _describeEverySecond( required array constraints ) {
-        if ( ArrayLen( constraints ) == 1 && constraints[1].type == "step" ) {
-            if ( constraints[1].step == 5 && constraints[1].to == 59 ) return "5 seconds";
-            if ( constraints[1].step == 10 && constraints[1].to == 59 ) return "10 seconds";
-            if ( constraints[1].step == 15 && constraints[1].to == 59 ) return "15 seconds";
-            if ( constraints[1].step == 30 && constraints[1].to == 59 ) return "30 seconds";
+        if ( step <= 1 ) {
+            return _t( isHours ? "every_hour" : "every_minute", arguments.locale );
         }
-        return _describeField( constraints );
-    }
 
-    private string function _intervalUnit( required numeric max ) {
-        if ( arguments.max <= 59 ) return "minutes";
-        if ( arguments.max <= 23 ) return "hours";
-        return "";
+        return _t( isHours ? "every_n_hours" : "every_n_minutes", arguments.locale, [ step ] );
     }
 
     private string function _describeMinute( required array constraints ) {
@@ -648,81 +611,62 @@ component displayName="ChronoPort" {
         return _pad( h ) & ":" & _pad( m );
     }
 
-    private string function _describeMonth( required array constraints ) {
+    private string function _describeMonth( required array constraints, required string locale ) {
         if ( _isAll( arguments.constraints ) || _isQuestion( arguments.constraints ) ) {
-            return "every month";
+            return _t( "every_month", arguments.locale );
         }
         var vals = _getValues( arguments.constraints );
         if ( ArrayLen( vals ) == 1 ) {
-            var monthNames = [ "", "January", "February", "March", "April", "May", "June",
-                                  "July", "August", "September", "October", "November", "December" ];
-            return monthNames[ vals[1] ];
+            return _getI18n().monthName( vals[1], arguments.locale );
         }
-        return "in " & _describeField( arguments.constraints );
+        return _t( "in_months", arguments.locale, [ _describeField( arguments.constraints ) ] );
     }
 
-    private string function _describeMonthDay( required array month, required array day ) {
-        var m = _describeMonth( arguments.month );
+    private string function _describeMonthDay( required array month, required array day, required string locale ) {
+        var m = _describeMonth( arguments.month, arguments.locale );
         var d = _firstValue( arguments.day );
         if ( !IsNull( d ) ) {
-            return "#m# #_ordinal( d )#";
+            return _t( "month_day", arguments.locale, [ m, _ordinal( d, arguments.locale ) ] );
         }
         return m;
     }
 
-    private string function _describeDOWOnly( required array constraints ) {
+    private string function _describeDOWOnly( required array constraints, required string locale ) {
         if ( _isAll( arguments.constraints ) || _isQuestion( arguments.constraints ) ) {
-            return "every day";
+            return _t( "every_day", arguments.locale );
         }
-        var vals = _getValues( arguments.constraints );
-        if ( ArrayLen( vals ) == 1 ) {
-            return _dowName( vals[1] );
-        }
+        var vals  = _getValues( arguments.constraints );
         var names = [];
         for ( var v in vals ) {
-            ArrayAppend( names, _dowName( v ) );
+            ArrayAppend( names, _getI18n().dayOfWeekName( v, arguments.locale ) );
         }
-        return ArrayToList( names, "," );
+        return ArrayToList( names, _t( "list_separator", arguments.locale ) );
     }
 
-    private string function _dowName( required numeric dayNum ) {
-        var names = [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" ];
-        return names[ arguments.dayNum ];
-    }
-
-    private string function _ordinal( required numeric n ) {
-        if ( arguments.n % 100 >= 11 && arguments.n % 100 <= 13 ) {
-            return "#arguments.n#th";
-        }
-        switch ( arguments.n % 10 ) {
-            case 1:  return "#arguments.n#st";
-            case 2:  return "#arguments.n#nd";
-            case 3:  return "#arguments.n#rd";
-            default: return "#arguments.n#th";
-        }
+    private string function _ordinal( required numeric n, required string locale ) {
+        return _getI18n().ordinal( arguments.n, arguments.locale );
     }
 
     private string function _pad( required numeric n ) {
         return NumberFormat( arguments.n, "00" );
     }
 
-    private string function _fallbackDescription( required struct parsed ) {
+    private string function _fallbackDescription( required struct parsed, required string locale ) {
         var f = arguments.parsed;
         if ( _isAll( f.minute ) && _isAll( f.hour ) ) {
-            return "cron(#f.raw#)";
+            return _t( "cron_fallback", arguments.locale, [ f.raw ] );
         }
         if ( _isAll( f.dayOfMonth ) || _isQuestion( f.dayOfMonth ) ) {
             if ( _hasSpecificDOW( f.dayOfWeek ) ) {
-                return "#_describeDOWOnly( f.dayOfWeek )# at #_describeHourMinute( f.hour, f.minute )#";
+                return _t( "dow_at", arguments.locale, [ _describeDOWOnly( f.dayOfWeek, arguments.locale ), _describeHourMinute( f.hour, f.minute ) ] );
             }
         }
-        return "cron(#f.raw#)";
+        return _t( "cron_fallback", arguments.locale, [ f.raw ] );
     }
 
     private string function _describeCron( required array constraints ) {
         return _describeField( arguments.constraints );
     }
-
 // FIELD QUERY HELPERS
     private boolean function _isAll( required array constraints ) {
         return ArrayLen( arguments.constraints ) == 1 && arguments.constraints[1].type == "all";
@@ -742,22 +686,7 @@ component displayName="ChronoPort" {
         return ArrayLen( arguments.constraints ) == 1 && arguments.constraints[1].type == "step";
     }
 
-    private boolean function _isEvery( required array constraints, required numeric step, required numeric max ) {
-        return ArrayLen( arguments.constraints ) == 1
-            && arguments.constraints[1].type == "step"
-            && arguments.constraints[1].step == arguments.step
-            && arguments.constraints[1].from == 0
-            && arguments.constraints[1].to == arguments.max;
-    }
-
     private boolean function _isSpecificDay( required array constraints ) {
-        if ( _isAll( arguments.constraints ) || _isQuestion( arguments.constraints ) ) {
-            return false;
-        }
-        return ArrayLen( arguments.constraints ) == 1 && arguments.constraints[1].type == "value";
-    }
-
-    private boolean function _isSpecificMonth( required array constraints ) {
         if ( _isAll( arguments.constraints ) || _isQuestion( arguments.constraints ) ) {
             return false;
         }
@@ -801,5 +730,18 @@ component displayName="ChronoPort" {
 // FORMATTING
     private string function _formatDate( required date dt ) {
         return DateFormat( arguments.dt, "yyyy-MM-dd" ) & "T" & TimeFormat( arguments.dt, "HH:mm:ss" );
+    }
+
+// I18N
+    private string function _t( required string key, required string locale, array args=[] ) {
+        return _getI18n().translate( argumentCollection=arguments );
+    }
+
+    private any function _getI18n() {
+        if ( !StructKeyExists( variables, "_i18n" ) ) {
+            variables._i18n = new ChronoI18n();
+        }
+
+        return variables._i18n;
     }
 }
