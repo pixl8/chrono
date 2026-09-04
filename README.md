@@ -67,6 +67,16 @@ Quartz 6-field format: `second minute hour dayOfMonth month dayOfWeek`
 
 Participation in this project is governed by the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
+## Attribution
+
+Chrono is a CFML port of [cron-utils](https://github.com/jmrozanec/cron-utils)
+(Copyright 2014 jmrozanec, Apache License 2.0). It ships none of that project's
+code, but the parsing rules, next-run search and the set of cases the
+descriptions recognise are derived from it.
+
+See [NOTICE.md](NOTICE.md) for the full third-party notices, the Apache 2.0
+licence text and a list of the significant differences from cron-utils.
+
 ## Licence
 
-MIT — see [LICENSE.txt](LICENSE.txt).
+MIT — see [LICENCE.txt](LICENCE.txt).
